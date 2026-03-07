@@ -1,0 +1,106 @@
+{
+  "manifest_version": 3,
+  "name": "Gestalt - AI Prompt Optimizer",
+  "version": "2.1.0",
+  "description": "让AI对话更专业 - RAG增强·智能推理·多模态支持·一键优化提示词",
+  "author": "Gestalt Project",
+  "homepage_url": "https://github.com/yourusername/gestalt-3-6",
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "activeTab",
+    "scripting",
+    "contextMenus",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*",
+    "https://gemini.google.com/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://deepseek.com/*",
+    "https://chat.deepseek.com/*",
+    "https://perplexity.ai/*",
+    "https://www.perplexity.ai/*",
+    "https://kimi.moonshot.cn/*",
+    "https://kimi.kimim.ai/*",
+    "https://yiyan.baidu.com/*",
+    "https://tongyi.aliyun.com/*",
+    "https://tongyi.alii.ai/*",
+    "https://copilot.microsoft.com/*",
+    "https://www.bing.com/*",
+    "https://doubao.com/*",
+    "https://www.doubao.com/*",
+    "https://ark.cn volc.cn/*",
+    "https://suno.com/*",
+    "https://www.suno.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://deepseek.com/*",
+        "https://chat.deepseek.com/*",
+        "https://perplexity.ai/*",
+        "https://www.perplexity.ai/*",
+        "https://kimi.moonshot.cn/*",
+        "https://kimi.kimim.ai/*",
+        "https://yiyan.baidu.com/*",
+        "https://tongyi.aliyun.com/*",
+        "https://tongyi.alii.ai/*",
+        "https://copilot.microsoft.com/*",
+        "https://www.bing.com/*",
+        "https://doubao.com/*",
+        "https://www.doubao.com/*",
+        "https://suno.com/*",
+        "https://www.suno.com/*",
+        "https://*/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Gestalt - 点击打开优化面板",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png",
+    "256": "icons/icon256.png"
+  },
+  "options_page": "options.html",
+  "commands": {
+    "quick-optimize": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "快速优化提示词"
+    },
+    "optimize-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "优化选中的文本"
+    }
+  }
+}

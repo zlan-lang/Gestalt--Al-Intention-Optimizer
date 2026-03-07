@@ -1,0 +1,59 @@
+/* ==========================================
+   Gestalt Chrome Extension - Content Styles
+   注入到目标页面的样式
+   ========================================== */
+
+/* 通知样式 */
+.gestalt-notification {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+  z-index: 2147483647;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.gestalt-notification.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 浮动按钮样式（可选） */
+.gestalt-floating-button {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(102, 126, 234, 0.4);
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.gestalt-floating-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.5);
+}
+
+.gestalt-floating-button svg {
+  width: 24px;
+  height: 24px;
+}

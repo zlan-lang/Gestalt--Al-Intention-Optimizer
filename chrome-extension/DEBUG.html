@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>调试 Gestalt</title>
+</head>
+<body>
+  <h1>调试页面</h1>
+  <p>打开控制台查看调试信息</p>
+  <script>
+    console.log('=== Gestalt 调试 ===')
+    console.log('全局函数:', {
+      startEditMessage: typeof window.startEditMessage,
+      confirmEditMessage: typeof window.confirmEditMessage,
+      cancelEditMessage: typeof window.cancelEditMessage,
+      usePrompt: typeof window.usePrompt,
+      editLibraryPrompt: typeof window.editLibraryPrompt,
+      reuseHistory: typeof window.reuseHistory
+    })
+  </script>
+</body>
+</html>

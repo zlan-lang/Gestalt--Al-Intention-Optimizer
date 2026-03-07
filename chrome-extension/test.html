@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestalt 插入功能测试</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      padding: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 12px;
+      color: #1e293b;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 32px;
+    }
+
+    .test-section {
+      margin-bottom: 32px;
+      padding: 24px;
+      background: #f8fafc;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .test-section h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #334155;
+    }
+
+    .test-box {
+      margin-bottom: 16px;
+    }
+
+    .test-box label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .contenteditable {
+      min-height: 100px;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      background: white;
+      font-size: 14px;
+    }
+
+    .contenteditable:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    .result-box {
+      margin-top: 16px;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .result-box.success {
+      border-color: #10b981;
+      background: #f0fdf4;
+    }
+
+    .result-box.error {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .info-box {
+      padding: 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+
+    .info-box h3 {
+      font-size: 16px;
+      color: #1e40af;
+      margin-bottom: 8px;
+    }
+
+    .info-box p {
+      font-size: 14px;
+      color: #1e3a8a;
+      line-height: 1.6;
+    }
+
+    .info-box ul {
+      margin-left: 20px;
+      margin-top: 8px;
+    }
+
+    .info-box li {
+      font-size: 14px;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Gestalt 插入功能测试</h1>
+    <p class="subtitle">测试提示词是否能正确插入到各种输入框中</p>
+
+    <div class="info-box">
+      <h3>📝 使用说明</h3>
+      <p>这个页面用于测试 Gestalt 的插入功能是否正常工作。请按照以下步骤操作：</p>
+      <ul>
+        <li>1. 点击"测试插入"按钮，测试文本是否会出现在测试框中</li>
+        <li>2. 查看测试结果，确认插入成功</li>
+        <li>3. 如果失败，查看错误信息和调试日志</li>
+        <li>4. 在真实的 AI 平台（ChatGPT、Claude 等）上测试</li>
+      </ul>
+    </div>
+
+    <div class="test-section">
+      <h2>测试 1: Textarea 输入框</h2>
+      <div class="test-box">
+        <label>测试文本框</label>
+        <textarea id="testTextarea" rows="4" placeholder="等待插入..."></textarea>
+      </div>
+      <div class="button-group">
+        <button class="btn-primary" onclick="testInsert('testTextarea', 'textarea')">🧪 测试插入到 Textarea</button>
+        <button class="btn-secondary" onclick="clearTest('testTextarea')">清除</button>
+      </div>
+      <div id="result1" class="result-box" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>测试 2: ContentEditable div</h2>
+      <div class="test-box">
+        <label>ContentEditable 测试框</label>
+        <div id="testContentEditable" class="contenteditable" contenteditable="true" data-placeholder="等待插入..."></div>
+      </div>
+      <div class="button-group">
+        <button class="btn-primary" onclick="testInsert('testContentEditable', 'contenteditable')">🧪 测试插入到 ContentEditable</button>
+        <button class="btn-secondary" onclick="clearTest('testContentEditable')">清除</button>
+      </div>
+      <div id="result2" class="result-box" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>测试 3: Input 输入框</h2>
+      <div class="test-box">
+        <label>Input 测试框</label>
+        <input type="text" id="testInput" placeholder="等待插入..." />
+      </div>
+      <div class="button-group">
+        <button class="btn-primary" onclick="testInsert('testInput', 'input')">🧪 测试插入到 Input</button>
+        <button class="btn-secondary" onclick="clearTest('testInput')">清除</button>
+      </div>
+      <div id="result3" class="result-box" style="display: none;"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>调试信息</h2>
+      <div class="button-group">
+        <button class="btn-primary" onclick="runAllTests()">🚀 运行所有测试</button>
+        <button class="btn-secondary" onclick="openConsole()">📋 打开控制台查看详细日志</button>
+      </div>
+      <div id="debugResult" class="result-box" style="display: none;"></div>
+    </div>
+  </div>
+
+  <script>
+    // 测试文本
+    const TEST_TEXT = `✨ Gestalt 插入功能测试
+测试时间: ${new Date().toLocaleString()}
+测试成功! 这段文字应该出现在输入框中。`
+
+    // 测试插入功能
+    async function testInsert(elementId, type) {
+      const element = document.getElementById(elementId)
+      const resultBox = document.getElementById('result' + elementId.replace('test', ''))
+
+      resultBox.style.display = 'block'
+      resultBox.textContent = '正在测试...'
+      resultBox.className = 'result-box'
+
+      try {
+        // 调用插入功能
+        const result = await chrome.runtime.sendMessage({
+          type: 'TEST_INSERT',
+          elementId: elementId,
+          testText: TEST_TEXT
+        })
+
+        // 检查结果
+        await sleep(500) // 等待插入完成
+
+        let actualValue = ''
+        if (type === 'contenteditable') {
+          actualValue = element.textContent || element.innerText
+        } else {
+          actualValue = element.value
+        }
+
+        const success = actualValue.includes('Gestalt 插入功能测试')
+
+        if (success) {
+          resultBox.textContent = `✅ 测试成功!\n\n插入方法: ${result.method || '未知'}\n插入内容长度: ${TEST_TEXT.length}\n实际内容长度: ${actualValue.length}\n\n内容预览:\n${actualValue.substring(0, 100)}...`
+          resultBox.classList.add('success')
+        } else {
+          resultBox.textContent = `❌ 测试失败!\n\n错误: 内容未成功插入\n预期内容包含: "Gestalt 插入功能测试"\n实际内容: ${actualValue || '(空)'}\n\n详细结果: ${JSON.stringify(result, null, 2)}`
+          resultBox.classList.add('error')
+        }
+      } catch (error) {
+        resultBox.textContent = `❌ 测试出错!\n\n错误信息: ${error.message}\n\n请确保:\n1. Gestalt 扩展已安装\n2. 扩展已启用\n3. 页面已刷新\n\n详细错误:\n${error.stack}`
+        resultBox.classList.add('error')
+      }
+    }
+
+    // 清除测试
+    function clearTest(elementId) {
+      const element = document.getElementById(elementId)
+      if (element.tagName === 'DIV') {
+        element.textContent = ''
+      } else {
+        element.value = ''
+      }
+    }
+
+    // 运行所有测试
+    async function runAllTests() {
+      const debugResult = document.getElementById('debugResult')
+      debugResult.style.display = 'block'
+      debugResult.textContent = '正在运行所有测试...\n\n'
+      debugResult.className = 'result-box'
+
+      const tests = [
+        { id: 'testTextarea', type: 'textarea' },
+        { id: 'testContentEditable', type: 'contenteditable' },
+        { id: 'testInput', type: 'input' }
+      ]
+
+      let results = []
+
+      for (const test of tests) {
+        debugResult.textContent += `测试 ${test.type}...\n`
+
+        await testInsert(test.id, test.type)
+
+        await sleep(1000)
+
+        const element = document.getElementById(test.id)
+        const actualValue = test.type === 'contenteditable'
+          ? element.textContent || element.innerText
+          : element.value
+
+        const success = actualValue.includes('Gestalt 插入功能测试')
+
+        results.push({
+          type: test.type,
+          success,
+          value: actualValue.substring(0, 50)
+        })
+
+        debugResult.textContent += `${success ? '✅' : '❌'} ${test.type}: ${success ? '成功' : '失败'}\n\n`
+      }
+
+      debugResult.textContent += '\n===================\n'
+      debugResult.textContent += `总结果: ${results.filter(r => r.success).length}/${results.length} 测试通过\n\n`
+
+      if (results.every(r => r.success)) {
+        debugResult.textContent += '🎉 所有测试通过! 插入功能正常工作。\n\n'
+        debugResult.textContent += '现在可以在真实的 AI 平台上测试:\n'
+        debugResult.textContent += '- ChatGPT (chatgpt.com)\n'
+        debugResult.textContent += '- Claude (claude.ai)\n'
+        debugResult.textContent += '- Gemini (gemini.google.com)\n'
+      } else {
+        debugResult.textContent += '⚠️ 部分测试失败。建议:\n\n'
+        debugResult.textContent += '1. 刷新此页面重试\n'
+        debugResult.textContent += '2. 检查浏览器控制台是否有错误\n'
+        debugResult.textContent += '3. 重新安装 Gestalt 扩展\n'
+      }
+    }
+
+    function openConsole() {
+      alert('请按 F12 或 Ctrl+Shift+I 打开开发者工具，然后查看 Console 标签。\n\n在控制台中，你可以看到详细的插入日志，包括:\n- 检测到的平台\n- 尝试的选择器\n- 插入方法\n- 成功/失败信息')
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms))
+    }
+
+    // 页面加载时的提示
+    window.addEventListener('load', () => {
+      console.log('%c🧪 Gestalt 插入功能测试页面', 'font-size: 20px; font-weight: bold;')
+      console.log('%c这个页面用于测试 Gestalt 的插入功能', 'font-size: 14px;')
+      console.log('%c点击按钮开始测试，或打开控制台查看详细日志', 'font-size: 12px; color: #64748b;')
+    })
+  </script>
+</body>
+</html>

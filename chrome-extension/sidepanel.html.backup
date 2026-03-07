@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestalt - AI Prompt Optimizer</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="gestalt-app">
+    <!-- 头部 -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">✨</span>
+        <span class="logo-text">Gestalt</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="libraryBtn" title="提示词库">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+        </button>
+        <button class="icon-btn" id="historyBtn" title="历史记录">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </button>
+        <button class="icon-btn" id="settingsBtn" title="设置">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 模态切换标签 -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="text">
+        <span class="mode-icon">📝</span>
+        <span>文本</span>
+      </button>
+      <button class="mode-tab" data-mode="image">
+        <span class="mode-icon">🎨</span>
+        <span>图片</span>
+      </button>
+      <button class="mode-tab" data-mode="video">
+        <span class="mode-icon">🎬</span>
+        <span>视频</span>
+      </button>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-container">
+
+      <!-- 对话面板 -->
+      <div class="mode-panel active" id="chatPanel">
+        <div class="chat-container" id="chatContainer">
+          <div class="messages" id="messages">
+            <!-- 欢迎消息 -->
+            <div class="message assistant">
+              <div class="message-avatar">✨</div>
+              <div class="message-content">
+                <p>你好！我是 <strong>Gestalt</strong>，AI 提示词优化专家。</p>
+                <p>描述你想要 AI 完成的任务，我会帮你优化成专业的提示词。</p>
+                <div class="quick-prompts">
+                  <button class="quick-prompt" data-prompt="帮我设计一个产品经理角色的提示词">🎯 产品经理</button>
+                  <button class="quick-prompt" data-prompt="帮我分析代码安全漏洞">🔒 代码安全</button>
+                  <button class="quick-prompt" data-prompt="帮我写法律顾问提示词">⚖️ 法律顾问</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-area">
+          <textarea
+            id="userInput"
+            placeholder="描述你想要做的事情... (Ctrl+Enter 发送)"
+            rows="3"
+          ></textarea>
+          <button id="sendBtn" class="send-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 提取的提示词 -->
+        <div class="prompt-output" id="promptOutput" style="display: none;">
+          <div class="output-header">
+            <span class="output-title">📋 优化后的提示词</span>
+            <div class="output-actions">
+              <button class="action-btn" id="saveToLibraryBtn" title="保存到库">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                </svg>
+                保存
+              </button>
+              <button class="action-btn" id="copyBtn" title="复制">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+              <button class="action-btn primary" id="insertBtn" title="插入到AI对话">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 10 4 15 9 20"></polyline>
+                  <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
+                </svg>
+                插入
+              </button>
+            </div>
+          </div>
+          <div class="output-content" id="extractedPrompt"></div>
+        </div>
+      </div>
+
+      <!-- 提示词库面板 -->
+      <div class="mode-panel" id="libraryPanel" style="display: none;">
+        <div class="library-header">
+          <h3>📚 提示词库</h3>
+          <button class="btn-primary-small" id="newPromptBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            新建
+          </button>
+        </div>
+
+        <!-- 搜索和筛选 -->
+        <div class="library-toolbar">
+          <div class="search-box">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.35-4.35"></path>
+            </svg>
+            <input type="text" id="librarySearch" placeholder="搜索提示词...">
+          </div>
+        </div>
+
+        <!-- 标签筛选 -->
+        <div class="library-tags" id="libraryTags">
+          <button class="tag-filter active" data-tag="all">全部</button>
+          <button class="tag-filter" data-tag="text">📝 文本</button>
+          <button class="tag-filter" data-tag="image">🎨 图片</button>
+          <button class="tag-filter" data-tag="video">🎬 视频</button>
+        </div>
+
+        <!-- 提示词列表 -->
+        <div class="library-list" id="libraryList">
+          <div class="empty-state">
+            <div class="empty-icon">📚</div>
+            <p>暂无保存的提示词</p>
+            <p class="empty-hint">点击"新建"添加第一个提示词</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 底部快捷操作栏 -->
+    <div class="quick-bar">
+      <div class="quick-bar-left">
+        <span class="shortcut-hint">Ctrl+Enter 发送</span>
+        <span class="shortcut-hint">Ctrl+K 打开命令面板</span>
+      </div>
+      <div class="quick-bar-right">
+        <button class="text-btn" id="exportBtn" title="导出">📤 导出</button>
+        <button class="text-btn" id="importBtn" title="导入">📥 导入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div class="modal" id="settingsModal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚙️ 设置</h3>
+        <button class="close-btn" id="closeSettings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="apiKey" placeholder="输入你的 API Key">
+        </div>
+        <div class="form-group">
+          <label>Base URL</label>
+          <select id="baseUrl">
+            <option value="https://api-inference.modelscope.cn/v1">ModelScope (推荐)</option>
+            <option value="https://api.deepseek.com/v1">DeepSeek</option>
+            <option value="https://api.openai.com/v1">OpenAI</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>模型</label>
+          <input type="text" id="modelName" placeholder="模型名称">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="resetConfig">重置</button>
+        <button class="btn primary" id="saveConfig">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提示词编辑弹窗 -->
+  <div class="modal" id="promptModal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="promptModalTitle">📝 新建提示词</h3>
+        <button class="close-btn" id="closePromptModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>标题</label>
+          <input type="text" id="promptTitle" placeholder="提示词标题">
+        </div>
+        <div class="form-group">
+          <label>内容</label>
+          <textarea id="promptContent" rows="6" placeholder="提示词内容..."></textarea>
+        </div>
+        <div class="form-group">
+          <label>描述</label>
+          <input type="text" id="promptDescription" placeholder="简要描述（可选）">
+        </div>
+        <div class="form-group">
+          <label>标签</label>
+          <div class="tags-input">
+            <input type="text" id="promptTags" placeholder="输入标签，按回车添加">
+            <div class="tags-list" id="tagsList"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="cancelPromptBtn">取消</button>
+        <button class="btn primary" id="savePromptModalBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史记录面板 -->
+  <div class="slide-panel" id="historyPanel" style="display: none;">
+    <div class="slide-panel-header">
+      <h3>📜 历史记录</h3>
+      <div class="slide-panel-actions">
+        <button class="text-btn" id="clearHistoryBtn">清空</button>
+        <button class="icon-btn-small" id="closeHistoryBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <!-- 命令面板 -->
+  <div class="command-palette" id="commandPalette" style="display: none;">
+    <div class="command-input-wrapper">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+      </svg>
+      <input type="text" id="commandInput" placeholder="输入命令或搜索...">
+      <span class="command-shortcut">Esc 关闭</span>
+    </div>
+    <div class="command-results" id="commandResults"></div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

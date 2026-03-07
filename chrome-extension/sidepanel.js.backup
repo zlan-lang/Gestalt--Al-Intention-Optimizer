@@ -1,0 +1,1134 @@
+// ==========================================
+// Gestalt Side Panel - Complete Implementation
+// ==========================================
+
+// 全局状态
+const state = {
+  config: null, // 改为 null,初始化时加载
+  currentMode: 'text', // 'text', 'image', 'video'
+  currentView: 'chat', // 'chat', 'library'
+  messages: [],
+  prompts: [],
+  filteredPrompts: [],
+  history: [],
+  extractedPrompt: '',
+  isLoading: false,
+  editingPromptId: null,
+  currentTags: [] // 当前编辑的标签
+}
+
+// DOM 元素
+const elements = {
+  // 视图
+  chatPanel: document.getElementById('chatPanel'),
+  libraryPanel: document.getElementById('libraryPanel'),
+  historyPanel: document.getElementById('historyPanel'),
+  commandPalette: document.getElementById('commandPalette'),
+
+  // 聊天
+  chatContainer: document.getElementById('chatContainer'),
+  messagesEl: document.getElementById('messages'),
+  userInput: document.getElementById('userInput'),
+  sendBtn: document.getElementById('sendBtn'),
+  promptOutput: document.getElementById('promptOutput'),
+  extractedPrompt: document.getElementById('extractedPrompt'),
+
+  // 库
+  libraryList: document.getElementById('libraryList'),
+  librarySearch: document.getElementById('librarySearch'),
+  libraryTags: document.getElementById('libraryTags'),
+
+  // 按钮
+  copyBtn: document.getElementById('copyBtn'),
+  insertBtn: document.getElementById('insertBtn'),
+  libraryBtn: document.getElementById('libraryBtn'),
+  historyBtn: document.getElementById('historyBtn'),
+  settingsBtn: document.getElementById('settingsBtn'),
+  newPromptBtn: document.getElementById('newPromptBtn'),
+  exportBtn: document.getElementById('exportBtn'),
+  importBtn: document.getElementById('importBtn'),
+
+  // 弹窗
+  settingsModal: document.getElementById('settingsModal'),
+  promptModal: document.getElementById('promptModal'),
+  settingsModalTitle: document.getElementById('settingsModal'),
+  closeSettings: document.getElementById('closeSettings'),
+  saveConfig: document.getElementById('saveConfig'),
+  resetConfig: document.getElementById('resetConfig'),
+  apiKey: document.getElementById('apiKey'),
+  baseUrl: document.getElementById('baseUrl'),
+  modelName: document.getElementById('modelName'),
+
+  // 命令面板
+  commandInput: document.getElementById('commandInput'),
+  commandResults: document.getElementById('commandResults'),
+
+  // 模式切换
+  modeTabs: document.querySelectorAll('.mode-tab')
+}
+
+// ==========================================
+// 初始化
+// ==========================================
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('[Gestalt] 初始化')
+
+  // 加载数据
+  await loadConfig()
+  await loadPrompts()
+  await loadHistory()
+
+  // 绑定事件
+  bindEvents()
+  bindQuickPrompts()
+
+  // 初始化界面
+  renderPrompts()
+})
+
+// 加载配置
+async function loadConfig() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['gestaltConfig'], (result) => {
+      if (result.gestaltConfig) {
+        state.config = { ...getDefaultConfig(), ...result.gestaltConfig }
+        updateConfigUI()
+      } else {
+        // 使用默认配置
+        state.config = getDefaultConfig()
+        updateConfigUI()
+        // 首次使用时自动保存默认配置
+        chrome.storage.local.set({ gestaltConfig: state.config })
+        showToast('欢迎使用Gestalt！已为您配置好默认API', 'info')
+      }
+      resolve()
+    })
+  })
+}
+
+// 获取默认配置
+function getDefaultConfig() {
+  return {
+    apiKey: 'sk-aaceedc5897743158c4b099dc08b24c5',
+    baseUrl: 'https://api.deepseek.com/v1',
+    modelName: 'deepseek-chat',
+    taskType: 'text',
+    reasoningMode: 'auto',
+    language: 'zh'
+  }
+}
+
+// 验证配置是否有效
+function isConfigValid() {
+  // 现在有默认API Key，所以只要state.config存在就有效
+  return state.config && state.config.apiKey
+}
+
+// 更新配置 UI
+function updateConfigUI() {
+  if (!state.config) return
+  elements.apiKey.value = state.config.apiKey || ''
+  elements.baseUrl.value = state.config.baseUrl || ''
+  elements.modelName.value = state.config.modelName || ''
+}
+
+// 加载提示词库
+async function loadPrompts() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['gestaltPrompts'], (result) => {
+      state.prompts = result.gestaltPrompts || []
+      state.filteredPrompts = [...state.prompts]
+      console.log('[Gestalt] 加载提示词库:', state.prompts.length, '条')
+      resolve()
+    })
+  })
+}
+
+// 加载历史
+async function loadHistory() {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['gestaltHistory'], (result) => {
+      state.history = result.gestaltHistory || []
+      resolve()
+    })
+  })
+}
+
+// ==========================================
+// 视图切换
+// ==========================================
+
+function switchView(view) {
+  state.currentView = view
+
+  // 更新按钮状态
+  elements.libraryBtn?.classList.toggle('active', view === 'library')
+  elements.historyBtn?.classList.toggle('active', view === 'history')
+
+  // 切换面板显示 - 使用 class 而不是 inline style
+  elements.chatPanel.classList.toggle('active', view === 'chat')
+  elements.libraryPanel.classList.toggle('active', view === 'library')
+
+  if (view === 'history') {
+    elements.historyPanel.style.display = 'flex'
+    renderHistory()
+  } else {
+    elements.historyPanel.style.display = 'none'
+  }
+}
+
+// 切换模式
+function switchMode(mode) {
+  const previousMode = state.currentMode
+  state.currentMode = mode
+
+  console.log('[Gestalt] 模式切换:', previousMode, '→', mode)
+
+  // 更新标签视觉状态
+  elements.modeTabs.forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.mode === mode)
+  })
+
+  // 显示模式切换提示
+  const modeNames = {
+    text: '📝 文本模式',
+    image: '🎨 图片模式',
+    video: '🎬 视频模式'
+  }
+
+  // 清除之前的提示（如果有）
+  if (window.modeToastTimeout) {
+    clearTimeout(window.modeToastTimeout)
+  }
+
+  // 显示新模式提示
+  const toast = document.createElement('div')
+  toast.className = 'toast toast-info mode-toast'
+  toast.textContent = `已切换到 ${modeNames[mode]}`
+  toast.style.cssText = `
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+  `
+  document.body.appendChild(toast)
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1'
+    toast.style.transform = 'translateY(0)'
+  })
+
+  window.modeToastTimeout = setTimeout(() => {
+    toast.style.opacity = '0'
+    toast.style.transform = 'translateY(-10px)'
+    setTimeout(() => toast.remove(), 300)
+  }, 2000)
+
+  // 更新输入框的placeholder提示
+  const placeholders = {
+    text: '描述你想要做的事情... (Ctrl+Enter 发送)',
+    image: '描述你想要生成的图片... (Ctrl+Enter 发送)',
+    video: '描述你想要生成的视频内容... (Ctrl+Enter 发送)'
+  }
+
+  if (elements.userInput) {
+    elements.userInput.placeholder = placeholders[mode]
+  }
+
+  // 如果当前有优化结果，提示用户重新优化
+  if (state.extractedPrompt) {
+    setTimeout(() => {
+      showToast(`提示：切换模式后建议重新优化以获得${modeNames[mode]}专属提示词`, 'info')
+    }, 2500)
+  }
+}
+
+// ==========================================
+// 事件绑定
+// ==========================================
+
+function bindEvents() {
+  // 模式切换
+  elements.modeTabs.forEach(tab => {
+    tab.addEventListener('click', () => switchMode(tab.dataset.mode))
+  })
+
+  // 视图切换
+  elements.libraryBtn?.addEventListener('click', () => {
+    if (state.currentView === 'library') {
+      switchView('chat')
+    } else {
+      switchView('library')
+      renderPrompts()
+    }
+  })
+
+  elements.historyBtn?.addEventListener('click', () => {
+    const isVisible = elements.historyPanel.style.display !== 'none'
+    if (isVisible) {
+      elements.historyPanel.style.display = 'none'
+    } else {
+      switchView('chat')
+      elements.historyPanel.style.display = 'flex'
+      renderHistory()
+    }
+  })
+
+  document.getElementById('closeHistoryBtn')?.addEventListener('click', () => {
+    elements.historyPanel.style.display = 'none'
+  })
+
+  // 发送消息
+  elements.sendBtn.addEventListener('click', handleSend)
+  elements.userInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      handleSend()
+    }
+  })
+
+  // 复制和插入
+  elements.copyBtn?.addEventListener('click', () => {
+    navigator.clipboard.writeText(state.extractedPrompt)
+    showToast('已复制到剪贴板')
+  })
+
+  elements.insertBtn?.addEventListener('click', handleInsert)
+
+  // 保存到库（打开提示词编辑弹窗）
+  document.getElementById('saveToLibraryBtn')?.addEventListener('click', () => {
+    openPromptModal()
+  })
+
+  // 设置
+  elements.settingsBtn?.addEventListener('click', () => {
+    elements.settingsModal.style.display = 'flex'
+  })
+
+  elements.closeSettings?.addEventListener('click', () => {
+    elements.settingsModal.style.display = 'none'
+  })
+
+  elements.settingsModal?.addEventListener('click', (e) => {
+    if (e.target === elements.settingsModal) {
+      elements.settingsModal.style.display = 'none'
+    }
+  })
+
+  // 保存配置
+  elements.saveConfig?.addEventListener('click', () => {
+    state.config.apiKey = elements.apiKey.value
+    state.config.baseUrl = elements.baseUrl.value
+    state.config.modelName = elements.modelName.value
+    chrome.storage.local.set({ gestaltConfig: state.config }, () => {
+      showToast('配置已保存')
+      elements.settingsModal.style.display = 'none'
+    })
+  })
+
+  // 重置配置
+  elements.resetConfig?.addEventListener('click', () => {
+    state.config = getDefaultConfig()
+    updateConfigUI()
+    showToast('配置已重置')
+  })
+
+  // 新建提示词
+  elements.newPromptBtn?.addEventListener('click', () => openPromptModal())
+
+  // 搜索
+  elements.librarySearch?.addEventListener('input', (e) => {
+    filterPrompts(e.target.value)
+  })
+
+  // 使用事件委托处理库列表中的点击事件
+  elements.libraryList?.addEventListener('click', (e) => {
+    const card = e.target.closest('.prompt-card')
+    if (!card) return
+
+    const id = card.dataset.id
+
+    if (e.target.closest('.use-btn')) usePrompt(id)
+    else if (e.target.closest('.copy-btn')) copyPrompt(id)
+    else if (e.target.closest('.edit-btn')) openPromptModal(id)
+    else if (e.target.closest('.delete-btn')) deletePrompt(id)
+    else if (e.target.closest('.favorite-btn')) toggleFavorite(id)
+  })
+
+  // 标签筛选
+  elements.libraryTags?.addEventListener('click', (e) => {
+    if (e.target.classList.contains('tag-filter')) {
+      elements.libraryTags.querySelectorAll('.tag-filter').forEach(t => t.classList.remove('active'))
+      e.target.classList.add('active')
+      filterPrompts(elements.librarySearch?.value || '', e.target.dataset.tag)
+    }
+  })
+
+  // 导入导出
+  elements.exportBtn?.addEventListener('click', exportPrompts)
+  elements.importBtn?.addEventListener('click', importPrompts)
+
+  // 命令面板
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault()
+      openCommandPalette()
+    }
+    if (e.key === 'Escape') {
+      closeCommandPalette()
+    }
+  })
+
+  elements.commandInput?.addEventListener('input', (e) => {
+    searchCommands(e.target.value)
+  })
+
+  document.getElementById('closePromptModal')?.addEventListener('click', () => {
+    elements.promptModal.style.display = 'none'
+  })
+
+  document.getElementById('cancelPromptBtn')?.addEventListener('click', () => {
+    elements.promptModal.style.display = 'none'
+  })
+
+  // 提示词编辑弹窗的保存按钮
+  document.getElementById('savePromptModalBtn')?.addEventListener('click', savePrompt)
+
+  // 标签输入
+  document.getElementById('promptTags')?.addEventListener('keydown', handleTagInput)
+
+  // 清空历史
+  document.getElementById('clearHistoryBtn')?.addEventListener('click', () => {
+    if (confirm('确定清空所有历史记录？')) {
+      state.history = []
+      chrome.storage.local.set({ gestaltHistory: [] })
+      renderHistory()
+      showToast('已清空')
+    }
+  })
+}
+
+// 绑定快捷提示词
+function bindQuickPrompts() {
+  document.querySelectorAll('.quick-prompt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      elements.userInput.value = btn.dataset.prompt
+      elements.userInput.focus()
+    })
+  })
+}
+
+// ==========================================
+// 核心功能：发送消息
+// ==========================================
+
+async function handleSend() {
+  const input = elements.userInput.value.trim()
+  if (!input || state.isLoading) return
+
+  // 验证配置
+  if (!isConfigValid()) {
+    showToast('请先在设置���配置API Key', 'warning')
+    elements.settingsBtn?.click()
+    return
+  }
+
+  // 添加用户消息（带模式标识）
+  const modeInfo = { text: '📝 文本', image: '🎨 图片', video: '🎬 视频' }
+  addMessage('user', input, modeInfo[state.currentMode])
+  elements.userInput.value = ''
+
+  // 显示加载
+  state.isLoading = true
+  elements.sendBtn.disabled = true
+  addLoadingMessage()
+
+  try {
+    const result = await compilePrompt(input)
+    removeLoadingMessage()
+
+    // 显示模式相关的结果提示
+    const modeNames = {
+      text: '文本提示词',
+      image: 'AI绘画提示词',
+      video: 'AI视频提示词'
+    }
+
+    const resultMessage = `✨ 已为您优化${modeNames[state.currentMode]}\n\n${result.explanation || '优化完成'}`
+    addMessage('assistant', resultMessage)
+
+    if (result.prompt) {
+      state.extractedPrompt = result.prompt
+      elements.extractedPrompt.textContent = result.prompt
+      elements.promptOutput.style.display = 'flex'
+    }
+
+    // 保存到历史
+    saveToHistory({
+      mode: state.currentMode,
+      userInput: input,
+      prompt: result.prompt,
+      explanation: result.explanation
+    })
+  } catch (error) {
+    console.error('[Gestalt] 错误:', error)
+    removeLoadingMessage()
+    addMessage('assistant', `错误: ${error.message}`)
+  } finally {
+    state.isLoading = false
+    elements.sendBtn.disabled = false
+  }
+}
+
+// 编译提示词
+async function compilePrompt(userInput) {
+  if (!state.config || !state.config.apiKey) {
+    throw new Error('请先在设置中配置API Key')
+  }
+
+  const systemPrompt = getSystemPrompt()
+
+  const response = await fetch(`${state.config.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${state.config.apiKey}`
+    },
+    body: JSON.stringify({
+      model: state.config.modelName,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userInput }
+      ],
+      temperature: 0.7,
+      max_tokens: 4096
+    })
+  })
+
+  if (!response.ok) throw new Error(`API错误: ${response.status}`)
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content
+  if (!content) throw new Error('空结果')
+
+  return { explanation: content, prompt: extractPrompt(content) }
+}
+
+// 获取系统提示词
+function getSystemPrompt() {
+  const prompts = {
+    text: `# Role: 提示词优化专家
+你擅长将用户想法转化为专业的AI提示词。
+请按以下格式输出：
+1. 优化思路（1-2句话）
+2. 优化后的提示词（Markdown代码块）`,
+
+    image: `# Role: AI绘画提示词专家
+你擅长将用户想法转化为专业的AI绘画提示词。
+请输出英文提示词，包含：
+1. 主体描述
+2. 艺术风格
+3. 光照和材质
+4. 构图建议`,
+
+    video: `# Role: AI视频提示词专家
+你擅长将用户想法转化为专业的AI视频提示词。
+请输出详细的视频提示词，包含：
+1. 场景描述
+2. 摄像机运动
+3. 时间节奏
+4. 视觉风格`
+  }
+  return prompts[state.currentMode] || prompts.text
+}
+
+// 提取提示词
+function extractPrompt(text) {
+  const match = text.match(/```(?:markdown|prompt)?\n?([\s\S]*?)\n?```/)
+  return match ? match[1].trim() : text
+}
+
+// ==========================================
+// 插入功能
+// ==========================================
+
+async function handleInsert() {
+  if (!state.extractedPrompt) return
+
+  showToast('正在插入...')
+
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+    if (tabs[0]?.id) {
+      // 尝试直接发送消息
+      let response = await chrome.tabs.sendMessage(tabs[0].id, {
+        type: 'INSERT_PROMPT',
+        prompt: state.extractedPrompt
+      }).catch(() => null)
+
+      // 如果消息发送失败，尝试动态注入脚本
+      if (!response) {
+        console.log('[Gestalt] 内容脚本未响应，尝试动态注入...')
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tabs[0].id },
+            files: ['simple-insert.js']
+          })
+          await new Promise(r => setTimeout(r, 300)) // 等待脚本加载
+
+          response = await chrome.tabs.sendMessage(tabs[0].id, {
+            type: 'INSERT_PROMPT',
+            prompt: state.extractedPrompt
+          })
+        } catch (e) {
+          console.log('[Gestalt] 动态注入失败:', e)
+        }
+      }
+
+      if (response?.success) {
+        showToast('✅ 已插入到AI对话')
+      } else {
+        // 降级到剪贴板
+        await navigator.clipboard.writeText(state.extractedPrompt)
+        showToast('📋 已复制到剪贴板，请Ctrl+V粘贴')
+      }
+    }
+  } catch (error) {
+    console.error('[Gestalt] 插入错误:', error)
+    await navigator.clipboard.writeText(state.extractedPrompt)
+    showToast('📋 已复制到剪贴板')
+  }
+}
+
+// ==========================================
+// 提示词库功能
+// ==========================================
+
+function renderPrompts() {
+  console.log('[Gestalt] 渲染提示词库, 数量:', state.filteredPrompts.length)
+
+  // 防御性检查：确保元素存在
+  const listContainer = elements.libraryList || document.getElementById('libraryList')
+  if (!listContainer) {
+    console.error('[Gestalt] 找不到libraryList元素!')
+    return
+  }
+
+  if (state.filteredPrompts.length === 0) {
+    listContainer.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">📚</div>
+        <p>暂无保存的提示词</p>
+      </div>
+    `
+    return
+  }
+
+  // 使用 DocumentFragment 优化性能
+  const fragment = document.createDocumentFragment()
+
+  state.filteredPrompts.forEach(prompt => {
+    const card = document.createElement('div')
+    card.className = 'prompt-card'
+    card.dataset.id = prompt.id
+    card.innerHTML = `
+      <div class="prompt-card-header">
+        <h4>${escapeHtml(prompt.title)}</h4>
+        <button class="icon-btn-small favorite-btn ${prompt.isFavorite ? 'active' : ''}" data-id="${prompt.id}">
+          ${prompt.isFavorite ? '⭐' : '☆'}
+        </button>
+      </div>
+      <p class="prompt-preview">${escapeHtml(prompt.content.substring(0, 80))}...</p>
+      <div class="prompt-tags">
+        ${(prompt.tags || []).map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+      </div>
+      <div class="prompt-actions">
+        <button class="action-btn-small use-btn" data-id="${prompt.id}">使用</button>
+        <button class="action-btn-small copy-btn" data-id="${prompt.id}">复制</button>
+        <button class="action-btn-small edit-btn" data-id="${prompt.id}">编辑</button>
+        <button class="action-btn-small delete-btn" data-id="${prompt.id}">删除</button>
+      </div>
+    `
+    fragment.appendChild(card)
+  })
+
+  listContainer.innerHTML = ''
+  listContainer.appendChild(fragment)
+  console.log('[Gestalt] 提示词库渲染完成, 已插入', state.filteredPrompts.length, '个提示词')
+}
+
+function filterPrompts(query = '', tag = 'all') {
+  state.filteredPrompts = state.prompts.filter(prompt => {
+    // 修复: 检查所有标签,不只是第一个
+    if (tag !== 'all' && !prompt.tags?.includes(tag)) return false
+
+    if (query) {
+      const q = query.toLowerCase()
+      return prompt.title?.toLowerCase().includes(q) ||
+             prompt.content?.toLowerCase().includes(q) ||
+             prompt.description?.toLowerCase().includes(q)
+    }
+    return true
+  })
+  renderPrompts()
+}
+
+function openPromptModal(id = null) {
+  state.editingPromptId = id
+  const prompt = id ? state.prompts.find(p => p.id === id) : null
+
+  document.getElementById('promptModalTitle').textContent = id ? '✏️ 编辑提示词' : '📝 新建提示词'
+  document.getElementById('promptTitle').value = prompt?.title || ''
+  document.getElementById('promptDescription').value = prompt?.description || ''
+
+  // 如果是新建且有优化后的内容，自动填充
+  if (!id && state.extractedPrompt) {
+    document.getElementById('promptContent').value = state.extractedPrompt
+    // 自动生成标题（取前30个字符）
+    if (!document.getElementById('promptTitle').value) {
+      const title = state.extractedPrompt.split('\n')[0].substring(0, 30)
+      document.getElementById('promptTitle').value = title || '未命名提示词'
+    }
+  } else {
+    document.getElementById('promptContent').value = prompt?.content || ''
+  }
+
+  // 初始化标签
+  state.currentTags = prompt?.tags ? [...prompt.tags] : []
+  renderTags()
+
+  elements.promptModal.style.display = 'flex'
+}
+
+// 标签处理函数
+function handleTagInput(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault()
+    const input = e.target
+    const tag = input.value.trim()
+
+    if (tag && !state.currentTags.includes(tag)) {
+      state.currentTags.push(tag)
+      renderTags()
+      input.value = ''
+    }
+  }
+}
+
+function renderTags() {
+  const container = document.getElementById('tagsList')
+  if (!container) return
+
+  container.innerHTML = state.currentTags.map(tag => `
+    <span class="tag-item">
+      ${escapeHtml(tag)}
+      <button class="tag-remove" data-tag="${escapeHtml(tag)}">×</button>
+    </span>
+  `).join('')
+
+  container.querySelectorAll('.tag-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.currentTags = state.currentTags.filter(t => t !== btn.dataset.tag)
+      renderTags()
+    })
+  })
+}
+
+function savePrompt() {
+  const title = document.getElementById('promptTitle').value.trim()
+  const content = document.getElementById('promptContent').value.trim()
+  const description = document.getElementById('promptDescription').value.trim()
+
+  console.log('[Gestalt] 保存提示词:', { title, contentLength: content.length, hasDescription: !!description })
+
+  if (!title || !content) {
+    showToast('请填写标题和内容')
+    return
+  }
+
+  const promptData = {
+    title,
+    content,
+    description,
+    tags: state.currentTags || [],
+    taskType: state.currentMode,
+    reasoningMode: state.config?.reasoningMode || 'auto'
+  }
+
+  console.log('[Gestalt] 发送保存请求:', promptData)
+  showLoadingState()
+
+  if (state.editingPromptId) {
+    // 更新 - 调用 background.js
+    chrome.runtime.sendMessage({
+      type: 'UPDATE_PROMPT',
+      prompt: { ...promptData, id: state.editingPromptId }
+    }, (response) => {
+      hideLoadingState()
+      console.log('[Gestalt] 更新响应:', response)
+      if (response?.success) {
+        showToast('已更新')
+        closeAndRefresh()
+      } else {
+        showToast(response?.error || '更新失败', 'error')
+      }
+    })
+  } else {
+    // 新建 - 调用 background.js
+    chrome.runtime.sendMessage({
+      type: 'SAVE_PROMPT',
+      prompt: promptData
+    }, (response) => {
+      hideLoadingState()
+      console.log('[Gestalt] 保存响应:', response)
+      if (response?.success) {
+        showToast('已保存')
+        closeAndRefresh()
+      } else {
+        showToast(response?.error || '保存失败', 'error')
+      }
+    })
+  }
+}
+
+// 关闭弹窗并刷新
+function closeAndRefresh() {
+  console.log('[Gestalt] 关闭弹窗并刷新提示词库')
+  elements.promptModal.style.display = 'none'
+
+  loadPrompts().then(() => {
+    console.log('[Gestalt] 提示词库已刷新, 当前数量:', state.prompts.length)
+
+    // 切换到提示词库视图，让用户看到新保存的提示词
+    if (state.currentView !== 'library') {
+      console.log('[Gestalt] 切换到提示词库视图')
+      switchView('library')
+    }
+
+    renderPrompts()
+  })
+}
+
+function deletePrompt(id) {
+  if (!confirm('确定删除？')) return
+
+  chrome.runtime.sendMessage({
+    type: 'DELETE_PROMPT',
+    id: id
+  }, (response) => {
+    if (response?.success) {
+      showToast('已删除')
+      loadPrompts().then(() => renderPrompts())
+    }
+  })
+}
+
+function toggleFavorite(id) {
+  const prompt = state.prompts.find(p => p.id === id)
+  if (prompt) {
+    const newFavoriteStatus = !prompt.isFavorite
+    chrome.runtime.sendMessage({
+      type: 'UPDATE_PROMPT',
+      prompt: { ...prompt, isFavorite: newFavoriteStatus }
+    }, (response) => {
+      if (response?.success) {
+        loadPrompts().then(() => renderPrompts())
+      }
+    })
+  }
+}
+
+function copyPrompt(id) {
+  const prompt = state.prompts.find(p => p.id === id)
+  if (prompt) {
+    navigator.clipboard.writeText(prompt.content)
+    showToast('已复制')
+  }
+}
+
+function usePrompt(id) {
+  const prompt = state.prompts.find(p => p.id === id)
+  if (prompt) {
+    state.extractedPrompt = prompt.content
+    elements.extractedPrompt.textContent = prompt.content
+    elements.promptOutput.style.display = 'flex'
+    switchView('chat')
+
+    // 增加使用次数
+    prompt.useCount = (prompt.useCount || 0) + 1
+    chrome.storage.local.set({ gestaltPrompts: state.prompts })
+
+    showToast('已填入输入框')
+  }
+}
+
+// ==========================================
+// 历史记录
+// ==========================================
+
+function renderHistory() {
+  const list = document.getElementById('historyList')
+  if (!list) return
+
+  if (state.history.length === 0) {
+    list.innerHTML = '<div class="empty-state"><p>暂无历史记录</p></div>'
+    return
+  }
+
+  list.innerHTML = state.history.map((item, i) => `
+    <div class="history-item" data-index="${i}">
+      <div class="history-item-header">
+        <span>${getModeIcon(item.mode)}</span>
+        <span class="history-time">${formatTime(item.timestamp)}</span>
+      </div>
+      <p class="history-preview">${escapeHtml(item.userInput?.substring(0, 50))}...</p>
+    </div>
+  `).join('')
+
+  list.querySelectorAll('.history-item').forEach((item, i) => {
+    item.addEventListener('click', () => {
+      const h = state.history[i]
+      if (h) {
+        elements.userInput.value = h.userInput || ''
+        elements.userInput.focus()
+        elements.historyPanel.style.display = 'none'
+      }
+    })
+  })
+}
+
+function saveToHistory(data) {
+  state.history.unshift({
+    id: Date.now().toString(36),
+    ...data,
+    timestamp: Date.now()
+  })
+  if (state.history.length > 100) state.history.pop()
+  chrome.storage.local.set({ gestaltHistory: state.history })
+}
+
+function getModeIcon(mode) {
+  return { text: '📝', image: '🎨', video: '🎬' }[mode] || '📝'
+}
+
+function formatTime(ts) {
+  const d = new Date(ts)
+  const now = new Date()
+  const diff = now - d
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff/60000)}分钟前`
+  if (diff < 86400000) return `${Math.floor(diff/3600000)}小时前`
+  return `${d.getMonth()+1}/${d.getDate()}`
+}
+
+// ==========================================
+// 命令面板
+// ==========================================
+
+function openCommandPalette() {
+  elements.commandPalette.style.display = 'flex'
+  elements.commandInput.value = ''
+  elements.commandInput.focus()
+  renderCommands([])
+}
+
+function closeCommandPalette() {
+  elements.commandPalette.style.display = 'none'
+}
+
+function searchCommands(query) {
+  const commands = [
+    { id: 'new', name: '新建提示词', icon: '➕', action: () => openPromptModal() },
+    { id: 'library', name: '打开提示词库', icon: '📚', action: () => { switchView('library'); renderPrompts() } },
+    { id: 'history', name: '查看历史记录', icon: '📜', action: () => { elements.historyPanel.style.display = 'flex'; renderHistory() } },
+    { id: 'settings', name: '打开设置', icon: '⚙️', action: () => elements.settingsModal.style.display = 'flex' },
+    { id: 'export', name: '导出提示词', icon: '📤', action: exportPrompts },
+    { id: 'import', name: '导入提示词', icon: '📥', action: importPrompts }
+  ]
+
+  const filtered = query
+    ? commands.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
+    : commands
+
+  renderCommands(filtered)
+}
+
+function renderCommands(commands) {
+  elements.commandResults.innerHTML = commands.map(cmd => `
+    <div class="command-item" data-id="${cmd.id}">
+      <span class="command-icon">${cmd.icon}</span>
+      <span class="command-name">${cmd.name}</span>
+    </div>
+  `).join('')
+
+  elements.commandResults.querySelectorAll('.command-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const cmd = commands.find(c => c.id === item.dataset.id)
+      if (cmd) {
+        cmd.action()
+        closeCommandPalette()
+      }
+    })
+  })
+}
+
+// ==========================================
+// 导入导出
+// ==========================================
+
+function exportPrompts() {
+  const data = JSON.stringify(state.prompts, null, 2)
+  const blob = new Blob([data], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `gestalt-prompts-${Date.now()}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+  showToast('已导出')
+}
+
+function importPrompts() {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json'
+  input.onchange = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      const text = await file.text()
+      const imported = JSON.parse(text)
+      if (Array.isArray(imported)) {
+        state.prompts = [...state.prompts, ...imported]
+        chrome.storage.local.set({ gestaltPrompts: state.prompts }, () => {
+          showToast(`已导入 ${imported.length} 条`)
+          renderPrompts()
+        })
+      }
+    } catch (error) {
+      showToast('导入失败: ' + error.message)
+    }
+  }
+  input.click()
+}
+
+// ==========================================
+// UI 辅助
+// ==========================================
+
+// 加载状态指示器
+function showLoadingState() {
+  const btn = document.getElementById('savePromptBtn') || elements.sendBtn
+  if (btn) {
+    btn.dataset.originalText = btn.textContent
+    btn.textContent = '加载中...'
+    btn.disabled = true
+  }
+}
+
+function hideLoadingState() {
+  const btn = document.getElementById('savePromptBtn') || elements.sendBtn
+  if (btn) {
+    btn.textContent = btn.dataset.originalText || '保存'
+    btn.disabled = false
+  }
+}
+
+function addMessage(role, content, modeLabel = null) {
+  const el = document.createElement('div')
+  el.className = `message ${role}`
+
+  const icon = role === 'user' ? '👤' : '✨'
+
+  // 如果有模式标签，显示在消息上方
+  const modeBadge = modeLabel ? `<div class="message-mode-badge">${modeLabel}</div>` : ''
+
+  el.innerHTML = `
+    ${modeBadge}
+    <div class="message-avatar">${icon}</div>
+    <div class="message-content">
+      <p>${content.replace(/\n/g, '</p><p>')}</p>
+    </div>
+    <div class="message-actions">
+      <button class="msg-action-btn copy-msg-btn" title="复制">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+      </button>
+      ${role === 'user' ? `
+      <button class="msg-action-btn edit-msg-btn" title="编辑">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+        </svg>
+      </button>
+      ` : ''}
+    </div>
+  `
+
+  // 绑定消息动作
+  el.querySelector('.copy-msg-btn')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(content)
+    showToast('已复制')
+  })
+
+  el.querySelector('.edit-msg-btn')?.addEventListener('click', () => {
+    elements.userInput.value = content
+    elements.userInput.focus()
+  })
+
+  elements.messagesEl.appendChild(el)
+  elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight
+}
+
+function addLoadingMessage() {
+  const el = document.createElement('div')
+  el.className = 'message assistant loading'
+  el.id = 'loadingMessage'
+  el.innerHTML = `
+    <div class="message-avatar">✨</div>
+    <div class="message-content">
+      <div class="spinner"></div>
+      <span>优化中...</span>
+    </div>
+  `
+  elements.messagesEl.appendChild(el)
+  elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight
+}
+
+function removeLoadingMessage() {
+  document.getElementById('loadingMessage')?.remove()
+}
+
+function showToast(message) {
+  const toast = document.createElement('div')
+  toast.style.cssText = `
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1e293b; color: white; padding: 10px 20px;
+    border-radius: 8px; font-size: 13px; z-index: 10000;
+    animation: fadeIn 0.2s ease;
+  `
+  toast.textContent = message
+  document.body.appendChild(toast)
+  setTimeout(() => toast.remove(), 2000)
+}
+
+function escapeHtml(text) {
+  if (!text) return ''
+  const d = document.createElement('div')
+  d.textContent = text
+  return d.innerHTML
+}
